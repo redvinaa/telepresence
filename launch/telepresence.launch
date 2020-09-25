@@ -1,0 +1,108 @@
+<launch>
+	<arg name="synchronize" default="true"/>
+	<arg name="fisheye"     default="true"/><!-- for this, $(arg synchronize) also needs to be set -->
+	<arg name="out_width"   default="400"/>
+	<arg name="out_height"  default="300"/>
+
+	<arg name="browser"     default="true"/>
+	<arg name="host"        default="localhost"/>
+	<arg name="port"        default="5001"/>
+
+
+	<arg if="$(arg fisheye)"     name="image_in"          value="/camera/fisheye1/image_raw"/>
+	<arg if="$(arg fisheye)"     name="camera_info_in"    value="/camera/fisheye1/camera_info"/>
+	<arg unless="$(arg fisheye)" name="image_in"          value="/camera/color/image_raw"/>
+	<arg unless="$(arg fisheye)" name="camera_info_in"    value="/camera/color/camera_info"/>
+
+
+	<node name="image_filter" if="$(arg synchronize)" pkg="telepresence" type="image_filter.py">
+		<!-- synchronizes image_in and camera_info_in -->
+		<!-- undistorts fisheye lens if $(arg fisheye) is set -->
+
+		<param name="fisheye"        type="bool"   value="$(arg fisheye)"/>
+
+		<!-- output image shape (only if $(arg fisheye) is set) -->
+		<param name="out_width"      type="int"    value="$(arg out_width)"/>
+		<param name="out_height"     type="int"    value="$(arg out_height)"/>
+
+		<!-- in -->
+		<remap from="image"            to="$(arg image_in)"/>
+		<remap from="camera_info"      to="$(arg camera_info_in)"/>
+
+		<!-- out -->
+		<remap from="image_sync"       to="/camera/color/sync/image"/>
+		<remap from="camera_info_sync" to="/camera/color/sync/camera_info"/>
+	</node>
+
+	<!-- telepresence node -->
+	<node name="telepresence"
+			pkg="telepresence" type="telepresence" output="screen">
+
+		<!-- subscriptions -->
+			<!-- image_in -->
+			<!-- camera_info_in -->
+			<!-- map -->
+			<!-- tf -->
+			<!-- tf_static -->
+			<!-- cloud_map (only if $(arg use_pointcloud) is set) -->
+			<!-- move_base action -->
+		<!-- publications -->
+			<!-- image -->
+			<!-- tf -->
+			<!-- tf_static -->
+			<!-- visualization_marker (only if $(arg ray_marker) is set) -->
+		<!-- advertised services -->
+			<!-- click -->
+
+		<param name="use_waypoint"   type="bool"   value="true"/>
+		<param name="use_move_base"  type="bool"   value="false"/>
+		<param name="goal_tf_frame"  type="string" value="telepresence_goal"/>
+		<param name="camera_frame"   type="string" value="camera_rgb_optical_frame"/>
+
+		<!-- update map -->
+		<param name="dynamic_map"    type="bool"   value="true"/>
+
+		<param name="ray_marker"     type="bool"   value="true"/>
+		<param name="use_pointcloud" type="bool"   value="false"/>
+		<param name="show_distance"  type="bool"   value="true"/>
+
+		<!-- ray calculations granuality -->
+		<param name="ray_step"       type="double" value="0.28"/>
+		<param name="robot_radius"   type="double" value="0.4"/>
+
+		<!-- step back this distance from found goal so the robot can approach it -->
+		<param name="stepback_dist"  type="double" value="0.3"/>
+
+		<!-- maximum distance to goal -->
+		<param name="max_ray_dist"   type="double" value="15"/>
+
+		<param if="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/sync/image"/>
+		<param if="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/sync/camera_info"/>
+
+		<param unless="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/image"/>
+		<param unless="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/camera_info"/>
+
+		<remap from="cloud_map"      to="/rtabmap/cloud_map"/>
+		<remap from="map"            to="/map"/>
+	</node>
+
+	<group if="$(arg browser)">
+		<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+		<node name="web_video_server"
+				pkg="web_video_server" type="web_video_server">
+			<param name="port" value="8080"/>
+			<param name="address" value="localhost"/>
+		</node>
+
+		<!-- runs express.js server for browser interaction -->
+		<node name="telepresence_server" pkg="telepresence" type="telepresence_server"
+			args="$(find telepresence) $(arg host) $(arg port)"/>
+	</group>
+
+	<!-- 
+	<include file="$(find porszilo)/launch/t265_test.launch">
+		<arg name="static_tf" value="true"/>
+	</include>
+	-->
+
+</launch>
