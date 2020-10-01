@@ -62,11 +62,12 @@ namespace telepresence
 		ros::Subscriber cloudSub;
 		ros::Subscriber gridSub;
 		ros::Subscriber arrivedSub;
+		ros::Publisher move_basePub;
 		ros::Publisher goalPub;
 		ros::Publisher rvizPub;
 		visualization_msgs::Marker marker;
 		ros::ServiceServer clickSrv;
-		std::unique_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> moveBaseAction;
+		// std::unique_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> moveBaseAction;
 
 		// big memory-stored objects
 		cv_bridge::CvImagePtr inputBridge;
@@ -76,10 +77,11 @@ namespace telepresence
 		grid_map::GridMap grid_map;
 
 		// parameters
-		bool dynamic_map, ray_marker, use_pointcloud;
+		bool dynamic_map, ray_marker, use_pointcloud, fisheye;
 		bool show_distance, use_waypoint, use_move_base;
 		double ray_step, robot_radius, max_ray_dist, stepback_dist;
-		std::string goal_tf_frame, camera_frame, image_in_topic, camera_info_in_topic;
+		int orig_width, orig_height, out_width, out_height, offset_w, offset_h;
+		std::string goal_tf_frame, camera_frame, image_in_topic, camera_info_in_topic, move_base_instance;
 		/* At user command, starting from the camera, the node is jumping along the ray 
 		 * (ray_step long jumps), and at every step checks if the distance
 		 * from the given point of the ray to any of the points from the 
@@ -115,8 +117,9 @@ namespace telepresence
 	  public:
 		Telepresence(ros::NodeHandle);
 	};
-}
 
-std::string precision_2(float);
+	std::string precision_2(float);
+	void cropImage(cv::Mat& image, const int& o_w, const int& o_h, const int& width, const int& height);
+}
 
 #endif

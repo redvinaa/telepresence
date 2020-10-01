@@ -1,13 +1,20 @@
 const ROT_FREQ = 10
-const ROT_VEL = 0.7
+const ROT_VEL = 0.2
 
 
 
 
-window.onload = function () {
+window.onload = async function () {
+
+	var websocket_address  = await $.get('/websocket_address').promise();
+	var move_base_instance = await $.get('/move_base_instance').promise();
+	var cmd_vel_topic      = await $.get('/cmd_vel_topic').promise();
+	var stream_url         = await $.get('/stream_url').promise();
 
 	ros = new ROSLIB.Ros({
-		url: "ws://localhost:9090"
+		// TODO
+		// url: "ws://localhost:9090"
+		url: websocket_address
 	});
 
 	ros.on('connection', function() {
@@ -35,15 +42,15 @@ window.onload = function () {
 
 	var pubRotate = new ROSLIB.Topic({
 		ros: ros,
-		name: "/cmd_vel",
+		name: cmd_vel_topic,
 		messageType: "geometry_msgs/Twist"
 	});
 	var rotateMessage = new ROSLIB.Message({});
 
 	var pubCancelGoal = new ROSLIB.Topic({
 		ros: ros,
-		name: '/move_base/cancel',
-		messageType: 'actionlib_msgs/GoalID'
+		name: '/'+move_base_instance+'/cancel',
+		messageType: 'actionlib_msgs/GoalID' // TODO
 	});
 	var cancelMessage = new ROSLIB.Message({});
 
@@ -59,21 +66,22 @@ window.onload = function () {
 	var btn_color_canc = btn_cancel.style.background;
 	var btn_color_down = "white"
 
-	var btnTimeout;
+	var btnInterval;
 
 	btn_left.onmousedown = () => {
 
 		rotateMessage = new ROSLIB.Message({
 			linear: {x: 0, y: 0, z: 0},  angular: {x: 0, y: 0, z: ROT_VEL}
 		})
-		btnTimeout = window.setTimeout(()=>{
+		btnInterval = window.setInterval(()=>{
+			console.log('rotating left...')
 			pubRotate.publish(rotateMessage);
 		}, 1000/ROT_FREQ);
 		btn_left.style.background = btn_color_down;
 	}
 
 	btn_left.onmouseup = () => {
-		window.clearTimeout(btnTimeout);
+		window.clearInterval(btnInterval);
 		rotateMessage.angular.z = 0;
 		pubRotate.publish(rotateMessage);
 		btn_left.style.background = btn_color_orig;
@@ -84,14 +92,15 @@ window.onload = function () {
 		rotateMessage = new ROSLIB.Message({
 			linear: {x: 0, y: 0, z: 0},  angular: {x: 0, y: 0, z: -ROT_VEL}
 		})
-		btnTimeout = window.setTimeout(()=>{
+		btnInterval = window.setInterval(()=>{
+			console.log('rotating right...')
 			pubRotate.publish(rotateMessage);
 		}, 1000/ROT_FREQ);
 		btn_right.style.background = btn_color_down;
 	}
 
 	btn_right.onmouseup = () => {
-		window.clearTimeout(btnTimeout);
+		window.clearInterval(btnInterval);
 		rotateMessage.angular.z = 0;
 		pubRotate.publish(rotateMessage);
 		btn_right.style.background = btn_color_orig;
@@ -109,6 +118,8 @@ window.onload = function () {
 
 	el = document.getElementById("screen");
 	if (!el) {throw "Could not get canvas element"};
+	// el.setAttribute("src", stream_url);
+	// TODO
 
 
 	el.onclick = function(event) {
@@ -131,15 +142,4 @@ window.onload = function () {
 			}
 		});
 	}
-
-	el.onmousedown = function(event) {
-		setTimeout(function() {
-
-		}, 500);
-	}
-
-	el.onhover = function(event) {
-		setTimeout()
-	}
-
 }

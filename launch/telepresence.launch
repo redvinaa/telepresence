@@ -1,16 +1,22 @@
 <launch>
-	<arg name="synchronize" default="true"/>
-	<arg name="fisheye"     default="true"/><!-- for this, $(arg synchronize) also needs to be set -->
-	<arg name="out_width"   default="400"/>
-	<arg name="out_height"  default="300"/>
+	<arg name="image_out"          default="/telepresence/image"/>
+	<arg name="cmd_vel_topic"      default="/cmd_vel"/>
+	<arg name="move_base_instance" default="move_base_simple"/>
 
-	<arg name="browser"     default="true"/>
-	<arg name="host"        default="localhost"/>
-	<arg name="port"        default="5001"/>
+	<arg name="synchronize"        default="true"/>
+	<arg name="fisheye"            default="true"/>          <!-- only if $(arg synchronize) is set -->
+	<arg name="out_width"          default="400"/>
+	<arg name="out_height"         default="300"/>
+
+	<arg name="browser"            default="true"/>
+	<arg name="host"               default="192.168.2.102"/> <!-- only if $(arg browser) is set -->
+	<arg name="port_telepresence"  default="5010"/>          <!-- only if $(arg browser) is set -->
+	<arg name="port_websocket"     default="9090"/>          <!-- only if $(arg browser) is set -->
+	<arg name="port_stream"        default="8080"/>          <!-- only if $(arg browser) is set -->
 
 
-	<arg if="$(arg fisheye)"     name="image_in"          value="/camera/fisheye1/image_raw"/>
-	<arg if="$(arg fisheye)"     name="camera_info_in"    value="/camera/fisheye1/camera_info"/>
+	<arg if="$(arg fisheye)"     name="image_in"          value="/t265_camera/fisheye1/image_raw"/>
+	<arg if="$(arg fisheye)"     name="camera_info_in"    value="/t265_camera/fisheye1/camera_info"/>
 	<arg unless="$(arg fisheye)" name="image_in"          value="/camera/color/image_raw"/>
 	<arg unless="$(arg fisheye)" name="camera_info_in"    value="/camera/color/camera_info"/>
 
@@ -20,10 +26,10 @@
 		<!-- undistorts fisheye lens if $(arg fisheye) is set -->
 
 		<param name="fisheye"        type="bool"   value="$(arg fisheye)"/>
+		<!-- <param name="out_width"      type="int"    value="$(arg out_width)"/> -->
+		<!-- <param name="out_height"     type="int"    value="$(arg out_height)"/> -->
 
-		<!-- output image shape (only if $(arg fisheye) is set) -->
-		<param name="out_width"      type="int"    value="$(arg out_width)"/>
-		<param name="out_height"     type="int"    value="$(arg out_height)"/>
+		<param name="undistort" type="bool" value="true"/>
 
 		<!-- in -->
 		<remap from="image"            to="$(arg image_in)"/>
@@ -45,7 +51,8 @@
 			<!-- tf -->
 			<!-- tf_static -->
 			<!-- cloud_map (only if $(arg use_pointcloud) is set) -->
-			<!-- move_base action -->
+			<!-- move_base        (only if $(arg use_move_base) is set)-->
+			<!-- waypoint         (only if $(arg use_waypoint) is set)-->
 		<!-- publications -->
 			<!-- image -->
 			<!-- tf -->
@@ -54,27 +61,32 @@
 		<!-- advertised services -->
 			<!-- click -->
 
-		<param name="use_waypoint"   type="bool"   value="true"/>
-		<param name="use_move_base"  type="bool"   value="false"/>
-		<param name="goal_tf_frame"  type="string" value="telepresence_goal"/>
-		<param name="camera_frame"   type="string" value="camera_rgb_optical_frame"/>
+		<param name="use_waypoint"       type="bool"   value="false"/> <!-- NOT IMPLEMENTED TODO -->
+		<param name="use_move_base"      type="bool"   value="true"/>
+		<param name="goal_tf_frame"      type="string" value="telepresence_goal"/>
+		<param name="camera_frame"       type="string" value="t265_camera_fisheye1_optical_frame"/>
 
 		<!-- update map -->
-		<param name="dynamic_map"    type="bool"   value="true"/>
+		<param name="dynamic_map"        type="bool"   value="true"/>
 
-		<param name="ray_marker"     type="bool"   value="true"/>
-		<param name="use_pointcloud" type="bool"   value="false"/>
-		<param name="show_distance"  type="bool"   value="true"/>
+		<param name="ray_marker"         type="bool"   value="true"/>
+		<param name="use_pointcloud"     type="bool"   value="false"/>
+		<param name="show_distance"      type="bool"   value="true"/>
 
 		<!-- ray calculations granuality -->
-		<param name="ray_step"       type="double" value="0.28"/>
-		<param name="robot_radius"   type="double" value="0.4"/>
+		<param name="ray_step"           type="double" value="0.28"/>
+		<param name="robot_radius"       type="double" value="0.4"/>
 
-		<!-- step back this distance from found goal so the robot can approach it -->
-		<param name="stepback_dist"  type="double" value="0.3"/>
+		<!-- step back this distance     from found goal so the robot can approach it -->
+		<param name="stepback_dist"      type="double" value="0.3"/>
 
-		<!-- maximum distance to goal -->
-		<param name="max_ray_dist"   type="double" value="15"/>
+		<!-- maximum distance to goal     -->
+		<param name="max_ray_dist"       type="double" value="15"/>
+
+		<param name="fisheye"            type="bool"   value="$(arg fisheye)"/>
+		<param name="out_width"          type="int"    value="$(arg out_width)"/>
+		<param name="out_height"         type="int"    value="$(arg out_height)"/>
+		<param name="move_base_instance" type="string" value="$(arg move_base_instance)"/>
 
 		<param if="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/sync/image"/>
 		<param if="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/sync/camera_info"/>
@@ -82,27 +94,27 @@
 		<param unless="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/image"/>
 		<param unless="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/camera_info"/>
 
-		<remap from="cloud_map"      to="/rtabmap/cloud_map"/>
-		<remap from="map"            to="/map"/>
+		<remap from="/telepresence/cloud_map"      to="/rtabmap/cloud_map"/>
+		<remap from="/telepresence/map"            to="/map"/>
+		<remap from="/telepresence/image"          to="$(arg image_out)"/>
 	</node>
 
 	<group if="$(arg browser)">
-		<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+		<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+			<arg name="port"    value="$(arg port_websocket)"/>
+			<arg name="address" value="192.168.2.208"/>
+		</include>
 		<node name="web_video_server"
 				pkg="web_video_server" type="web_video_server">
-			<param name="port" value="8080"/>
-			<param name="address" value="localhost"/>
+			<param name="port" value="$(arg port_stream)"/>
+			<param name="address" value="$(arg host)"/>
 		</node>
 
 		<!-- runs express.js server for browser interaction -->
-		<node name="telepresence_server" pkg="telepresence" type="telepresence_server"
-			args="$(find telepresence) $(arg host) $(arg port)"/>
+		<node name="telepresence_server" pkg="telepresence" type="index.js"
+			launch-prefix="node" output="screen"
+			args="$(find telepresence) $(arg host) $(arg port_telepresence) $(arg port_websocket) $(arg move_base_instance) $(arg cmd_vel_topic) $(arg port_stream) $(arg image_out)"/>
 	</group>
 
-	<!-- 
-	<include file="$(find porszilo)/launch/t265_test.launch">
-		<arg name="static_tf" value="true"/>
-	</include>
-	-->
 
 </launch>

@@ -18,8 +18,7 @@ assert __name__ == '__main__'
 
 cvBridge   = CvBridge()
 fisheye    = rospy.get_param('fisheye', True)
-out_width  = rospy.get_param('out_width', 350)
-out_height = rospy.get_param('out_height', 200)
+use_undistort = rospy.get_param('undistort', False)
 
 def callback(image, camera_info):
 	global cvBridge, fisheye, out_width, out_height
@@ -29,20 +28,8 @@ def callback(image, camera_info):
 		D = np.array(camera_info.D)
 
 		image_cv = cvBridge.imgmsg_to_cv2(image, 'mono8')
-		image_cv = cv2.undistort(image_cv, K, D)
-
-		size = image_cv.shape
-		w_in_center = size[0]//2
-		h_in_center = size[1]//2
-		w_out_half  = out_width//2
-		h_out_half  = out_height//2
-
-		w_from = w_in_center - w_out_half
-		w_to   = w_in_center + w_out_half
-		h_from = h_in_center - h_out_half
-		h_to   = h_in_center + h_out_half
-
-		image_cv = image_cv[h_from:h_to, w_from:w_to]
+		if use_undistort:
+			image_cv = cv2.undistort(image_cv, K, D)
 
 		image = cvBridge.cv2_to_imgmsg(image_cv, 'mono8')
 

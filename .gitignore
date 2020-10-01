@@ -5,3 +5,4 @@ pyenv.cfg
 TODO.txt
 package-lock.json
 .fuse*
+telepresence_comms.svg

@@ -17,27 +17,26 @@ Telepresence::Telepresence(ros::NodeHandle _nh)
 	nh.param<bool>("ray_marker",                  ray_marker,           true);
 	nh.param<bool>("use_pointcloud",              use_pointcloud,       true);
 	nh.param<bool>("show_distance",               show_distance,        true);
+	nh.param<bool>("fisheye",                     fisheye,              true);
+	nh.param<int>("out_width",                    out_width,            400);
+	nh.param<int>("out_height",                   out_height,           350);
+	nh.param<double>("robot_radius",              robot_radius,         0.3);
 	nh.param<double>("ray_step",                  ray_step,             0.1);
 	nh.param<double>("robot_radius",              robot_radius,         0.3);
 	nh.param<double>("max_ray_dist",              max_ray_dist,         20);
 	nh.param<double>("stepback_dist",             stepback_dist,        0.6);
 	nh.param<std::string>("goal_tf_frame",        goal_tf_frame,        "telepresence_goal");
 	nh.param<std::string>("camera_frame",         camera_frame,         "camera_rgb_optical_frame");
-	nh.param<std::string>("image_in",       image_in_topic,       "/camera/color/image");
-	nh.param<std::string>("camera_info_in", camera_info_in_topic, "/camera/color/camera_info");
-
+	nh.param<std::string>("image_in",             image_in_topic,       "/camera/color/sync/image");
+	nh.param<std::string>("camera_info_in",       camera_info_in_topic, "/camera/color/sync/camera_info");
+	nh.param<std::string>("move_base_instance",   move_base_instance,   "move_base_simple");
 
 	goalPose.header.frame_id = "map";
 	goalPose.child_frame_id = goal_tf_frame;
 	goalPose.transform.rotation.w = 1;
 
 	if (use_move_base)
-	{
-		moveBaseAction.reset(new actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>("move_base", true));
-
-		while (!moveBaseAction->waitForServer())
-			ROS_INFO("[telepresence] waiting for the move_base action server to come up");
-	}
+		move_basePub = nh.advertise<geometry_msgs::PoseStamped>("/"+move_base_instance+"/goal", 10);
 
 
 	cameraSub = imageTransport.subscribeCamera(image_in_topic, 1, &Telepresence::imageCb, this);
@@ -67,17 +66,22 @@ void Telepresence::imageCb(const sensor_msgs::ImageConstPtr& imageMsg, const sen
 		ROS_ERROR("[telepresence] Failed to convert image:\n%s", ex.what());
 	}
 
+	orig_width = infoMsg->width;
+	orig_height = infoMsg->height;
+	offset_w = (orig_width - out_width)/2;
+	offset_h = (orig_height - out_height)/2;
 	camModel.fromCameraInfo(infoMsg);
 
 	if (use_move_base)
 	{
-		auto mbState = moveBaseAction->getState();
-		if (moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::SUCCEEDED ||
-				moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::LOST)
-		{
-			imagePub.publish(inputBridge->toImageMsg());
-			return;
-		}
+		// TODO
+		// auto mbState = moveBaseAction->getState();
+		// if (moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::SUCCEEDED ||
+		// 		moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::LOST)
+		// {
+		// 	imagePub.publish(inputBridge->toImageMsg());
+		// 	return;
+		// }
 	}
 
 	goalPose.header.stamp = ros::Time::now();
@@ -97,6 +101,7 @@ void Telepresence::imageCb(const sensor_msgs::ImageConstPtr& imageMsg, const sen
 	} catch (tf::TransformException& ex)
 	{
 		ROS_WARN("[telepresence] TF exception:\n%s", ex.what());
+		cropImage(inputBridge->image, offset_w, offset_h, out_width, out_height);
 		imagePub.publish(inputBridge->toImageMsg());
 		return;
 	}
@@ -125,6 +130,7 @@ void Telepresence::imageCb(const sensor_msgs::ImageConstPtr& imageMsg, const sen
 		}
 	}
 
+	cropImage(inputBridge->image, offset_w, offset_h, out_width, out_height);
 	imagePub.publish(inputBridge->toImageMsg());
 } 
 
@@ -138,11 +144,16 @@ void Telepresence::cloudCb(const sensor_msgs::PointCloud2 &msg)
 bool Telepresence::clickCb(telepresence::ClickRequest &req, 
 		telepresence::ClickResponse &res)
 {
-	cv::Point2d uv(req.x*image.cols, req.y*image.rows);
-	ROS_DEBUG("[telepresence] clicked point %i, %i", (int)uv.x, (int)uv.y);
+	float new_pix_x = req.x*out_width/orig_width*image.cols + offset_w;
+	float new_pix_y = req.y*out_height/orig_height*image.rows + offset_h;
+	cv::Point2d uv(new_pix_x, new_pix_y);
+	ROS_WARN("[telepresence] clicked point %i, %i", (int)uv.x, (int)uv.y);
 
-	cv::Point3d ray = camModel.projectPixelTo3dRay(camModel.rectifyPoint(uv));
-	ray = ray;
+	cv::Point3d ray;
+	if (fisheye)
+		ray = camModel.projectPixelTo3dRay(uv);
+	if (!fisheye)
+		ray = camModel.projectPixelTo3dRay(camModel.rectifyPoint(uv));
 
 	geometry_msgs::Vector3Stamped ray_tf_camera, ray_tf_map;
 	ray_tf_camera.header.stamp = ros::Time::now();
@@ -278,16 +289,17 @@ bool Telepresence::clickCb(telepresence::ClickRequest &req,
 
 				if (use_move_base) // sending move_base goal
 				{
-					static move_base_msgs::MoveBaseGoal goal_mb;
-					goal_mb.target_pose.header.frame_id = "map";
-					goal_mb.target_pose.header.stamp = ros::Time::now();
+					static geometry_msgs::PoseStamped goal_mb;
+					goal_mb.header.frame_id = "map";
+					goal_mb.header.stamp = ros::Time::now();
 
-					goal_mb.target_pose.pose.position.x = it[0] - ray_tf_map.vector.x * stepback_dist;
-					goal_mb.target_pose.pose.position.y = it[1] - ray_tf_map.vector.y * stepback_dist;
-					goal_mb.target_pose.pose.position.z = 0;
-					goal_mb.target_pose.pose.orientation.w = 1;
+					goal_mb.pose.position.x = it[0] - ray_tf_map.vector.x * stepback_dist;
+					goal_mb.pose.position.y = it[1] - ray_tf_map.vector.y * stepback_dist;
+					goal_mb.pose.position.z = 0;
+					goal_mb.pose.orientation.w = 1;
 
-					moveBaseAction->sendGoal(goal_mb);
+					move_basePub.publish(goal_mb);
+					// moveBaseAction->sendGoal(goal_mb);
 					ROS_DEBUG("[telepresence] move_base goal sent");
 				}
 
@@ -433,16 +445,17 @@ bool Telepresence::clickCb(telepresence::ClickRequest &req,
 
 		if (use_move_base) // sending move_base goal
 		{
-			static move_base_msgs::MoveBaseGoal goal_mb;
-			goal_mb.target_pose.header.frame_id = "map";
-			goal_mb.target_pose.header.stamp = ros::Time::now();
+			static geometry_msgs::PoseStamped goal_mb;
+			goal_mb.header.frame_id = "map";
+			goal_mb.header.stamp = ros::Time::now();
 
-			goal_mb.target_pose.pose.position.x = hit_pos.x() - ray_tf_map.vector.x * stepback_dist;
-			goal_mb.target_pose.pose.position.y = hit_pos.y() - ray_tf_map.vector.y * stepback_dist;
-			goal_mb.target_pose.pose.position.z = 0;
-			goal_mb.target_pose.pose.orientation.w = 1;
+			goal_mb.pose.position.x = hit_pos.x() - ray_tf_map.vector.x * stepback_dist;
+			goal_mb.pose.position.y = hit_pos.y() - ray_tf_map.vector.y * stepback_dist;
+			goal_mb.pose.position.z = 0;
+			goal_mb.pose.orientation.w = 1;
 
-			moveBaseAction->sendGoal(goal_mb);
+			move_basePub.publish(goal_mb);
+			// moveBaseAction->sendGoal(goal_mb);
 			ROS_DEBUG("[telepresence] move_base goal sent");
 		}
 
@@ -466,7 +479,7 @@ void Telepresence::gridCb(const nav_msgs::OccupancyGrid &msg)
 
 
 
-std::string precision_2(float number) 
+std::string telepresence::precision_2(float number) 
 {
 		bool neg = false;
 		if (number < 0)
@@ -490,6 +503,10 @@ std::string precision_2(float number)
 		}
 }
 
+void telepresence::cropImage(cv::Mat& image, const int& o_w, const int& o_h, const int& width, const int& height)
+{
+	image = image(cv::Rect(o_w, o_h, width, height));
+}
 
 int main(int argc, char** argv) 
 {
