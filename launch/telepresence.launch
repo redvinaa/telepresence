@@ -4,12 +4,12 @@
 	<arg name="move_base_instance" default="move_base_simple"/>
 
 	<arg name="synchronize"        default="true"/>
-	<arg name="fisheye"            default="true"/>          <!-- only if $(arg synchronize) is set -->
+	<arg name="fisheye"            default="false"/>          <!-- only if $(arg synchronize) is set -->
 	<arg name="out_width"          default="400"/>
 	<arg name="out_height"         default="300"/>
 
 	<arg name="browser"            default="true"/>
-	<arg name="host"               default="192.168.2.102"/> <!-- only if $(arg browser) is set -->
+	<arg name="host"               default="localhost"/> <!-- only if $(arg browser) is set -->
 	<arg name="port_telepresence"  default="5010"/>          <!-- only if $(arg browser) is set -->
 	<arg name="port_websocket"     default="9090"/>          <!-- only if $(arg browser) is set -->
 	<arg name="port_stream"        default="8080"/>          <!-- only if $(arg browser) is set -->
@@ -90,7 +90,6 @@
 
 		<param if="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/sync/image"/>
 		<param if="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/sync/camera_info"/>
-
 		<param unless="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/image"/>
 		<param unless="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/camera_info"/>
 

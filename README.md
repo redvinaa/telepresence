@@ -42,3 +42,6 @@ The below picture contains additional information about the communication of the
 > It can send rotation commands on the `cmd_vel` topic.
 > 
 > It can also cancel the current move_base goal.
+
+A screenshot is shown below of the browser interface next to `rviz`.
+![browser interface](/screenshot.png "browser interface")
