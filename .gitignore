@@ -1,7 +1,7 @@
 node_modules
 bin
 lib
-pyenv.cfg
+pyvenv.cfg
 TODO.txt
 package-lock.json
 .fuse*

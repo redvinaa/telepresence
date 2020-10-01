@@ -1,7 +1,6 @@
 The telepresence node
 ===
 
----
 
 **This package takes a ROS image stream, and accepts a service that sends out a
 move_base goal at the location of the object that was 'clicked' through the given camera pixel.**
