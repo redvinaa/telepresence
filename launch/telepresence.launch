@@ -1,10 +1,15 @@
 <launch>
 	<arg name="image_out"          default="/telepresence/image"/>
 	<arg name="cmd_vel_topic"      default="/cmd_vel"/>
+	<arg name="rot_vel"            default="0.2"/>
 	<arg name="move_base_instance" default="move_base_simple"/>
+	<!-- TODO -->
+	<!-- <arg name="camera_tf"          default="t265_camera_fisheye1_optical_frame"/> -->
+	<arg name="camera_tf"          default="camera_rgb_optical_frame"/>
 
 	<arg name="synchronize"        default="true"/>
-	<arg name="fisheye"            default="false"/>          <!-- only if $(arg synchronize) is set -->
+	<arg name="fisheye"            default="false"/> <!-- only if $(arg synchronize) is set -->
+	<arg name="undistort"          default="true"/> <!-- only if $(arg fisheye) is set -->
 	<arg name="out_width"          default="400"/>
 	<arg name="out_height"         default="300"/>
 
@@ -15,9 +20,12 @@
 	<arg name="port_stream"        default="8080"/>          <!-- only if $(arg browser) is set -->
 
 
-	<arg if="$(arg fisheye)"     name="image_in"          value="/t265_camera/fisheye1/image_raw"/>
-	<arg if="$(arg fisheye)"     name="camera_info_in"    value="/t265_camera/fisheye1/camera_info"/>
-	<arg unless="$(arg fisheye)" name="image_in"          value="/camera/color/image_raw"/>
+	<!-- TODO -->
+	<arg if="$(arg fisheye)"     name="image_in"          value="/camera/color/image"/>
+	<arg if="$(arg fisheye)"     name="camera_info_in"    value="/camera/color/camera_info"/>
+	<!-- <arg if="$(arg fisheye)"     name="image_in"          value="/t265_camera/fisheye1/image_raw"/> -->
+	<!-- <arg if="$(arg fisheye)"     name="camera_info_in"    value="/t265_camera/fisheye1/camera_info"/> -->
+	<arg unless="$(arg fisheye)" name="image_in"          value="/camera/color/image"/>
 	<arg unless="$(arg fisheye)" name="camera_info_in"    value="/camera/color/camera_info"/>
 
 
@@ -29,7 +37,7 @@
 		<!-- <param name="out_width"      type="int"    value="$(arg out_width)"/> -->
 		<!-- <param name="out_height"     type="int"    value="$(arg out_height)"/> -->
 
-		<param name="undistort" type="bool" value="true"/>
+		<param name="undistort" type="bool" value="$(arg undistort)"/>
 
 		<!-- in -->
 		<remap from="image"            to="$(arg image_in)"/>
@@ -64,7 +72,7 @@
 		<param name="use_waypoint"       type="bool"   value="false"/> <!-- NOT IMPLEMENTED TODO -->
 		<param name="use_move_base"      type="bool"   value="true"/>
 		<param name="goal_tf_frame"      type="string" value="telepresence_goal"/>
-		<param name="camera_frame"       type="string" value="t265_camera_fisheye1_optical_frame"/>
+		<param name="camera_frame"       type="string" value="$(arg camera_tf)"/>
 
 		<!-- update map -->
 		<param name="dynamic_map"        type="bool"   value="true"/>
@@ -93,15 +101,15 @@
 		<param unless="$(arg synchronize)" name="image_in"       type="string" value="/camera/color/image"/>
 		<param unless="$(arg synchronize)" name="camera_info_in" type="string" value="/camera/color/camera_info"/>
 
-		<remap from="/telepresence/cloud_map"      to="/rtabmap/cloud_map"/>
-		<remap from="/telepresence/map"            to="/map"/>
-		<remap from="/telepresence/image"          to="$(arg image_out)"/>
+		<remap from="telepresence/cloud_map"      to="/rtabmap/cloud_map"/>
+		<remap from="telepresence/map"            to="/map"/>
+		<remap from="telepresence/image"          to="$(arg image_out)"/>
 	</node>
 
 	<group if="$(arg browser)">
 		<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
 			<arg name="port"    value="$(arg port_websocket)"/>
-			<arg name="address" value="192.168.2.208"/>
+			<arg name="address" value="$(arg host)"/>
 		</include>
 		<node name="web_video_server"
 				pkg="web_video_server" type="web_video_server">
@@ -112,7 +120,7 @@
 		<!-- runs express.js server for browser interaction -->
 		<node name="telepresence_server" pkg="telepresence" type="index.js"
 			launch-prefix="node" output="screen"
-			args="$(find telepresence) $(arg host) $(arg port_telepresence) $(arg port_websocket) $(arg move_base_instance) $(arg cmd_vel_topic) $(arg port_stream) $(arg image_out)"/>
+			args="$(find telepresence) $(arg host) $(arg port_telepresence) $(arg port_websocket) $(arg move_base_instance) $(arg cmd_vel_topic) $(arg port_stream) $(arg image_out) $(arg rot_vel)"/>
 	</group>
 
 

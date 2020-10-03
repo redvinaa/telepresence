@@ -41,6 +41,7 @@ Telepresence::Telepresence(ros::NodeHandle _nh)
 
 	cameraSub = imageTransport.subscribeCamera(image_in_topic, 1, &Telepresence::imageCb, this);
 	cloudSub = nh.subscribe("cloud_map", 5, &Telepresence::cloudCb, this);
+	move_baseSub = nh.subscribe("/"+move_base_instance+"/status", 5, &Telepresence::move_baseCb, this);
 
 	if (!use_pointcloud)
 		gridSub  = nh.subscribe("map", 5, &Telepresence::gridCb, this);
@@ -50,7 +51,6 @@ Telepresence::Telepresence(ros::NodeHandle _nh)
     imagePub = imageTransport.advertise("image", 10);
 	clickSrv = nh.advertiseService("click", &Telepresence::clickCb, this);
 } 
-
 
 
 // callbacks
@@ -72,16 +72,10 @@ void Telepresence::imageCb(const sensor_msgs::ImageConstPtr& imageMsg, const sen
 	offset_h = (orig_height - out_height)/2;
 	camModel.fromCameraInfo(infoMsg);
 
-	if (use_move_base)
+	if (use_move_base && !active_goal)
 	{
-		// TODO
-		// auto mbState = moveBaseAction->getState();
-		// if (moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::SUCCEEDED ||
-		// 		moveBaseAction->getState() == actionlib::SimpleClientGoalState::StateEnum::LOST)
-		// {
-		// 	imagePub.publish(inputBridge->toImageMsg());
-		// 	return;
-		// }
+		imagePub.publish(inputBridge->toImageMsg());
+		return;
 	}
 
 	goalPose.header.stamp = ros::Time::now();
@@ -139,6 +133,11 @@ void Telepresence::cloudCb(const sensor_msgs::PointCloud2 &msg)
 	if (!dynamic_map)
 		cloudSub.shutdown();
 	cloud = msg;
+} 
+
+void Telepresence::move_baseCb(const actionlib_msgs::GoalStatusArray& msg) 
+{
+	active_goal = msg.status_list.back().status == 3; 
 } 
 
 bool Telepresence::clickCb(telepresence::ClickRequest &req, 
@@ -511,7 +510,7 @@ void telepresence::cropImage(cv::Mat& image, const int& o_w, const int& o_h, con
 int main(int argc, char** argv) 
 {
 	ros::init(argc, argv, "telepresence");
-	ros::NodeHandle nh("telepresence");
+	ros::NodeHandle nh("~");
 	Telepresence tp(nh);
 	ros::spin();
 } 

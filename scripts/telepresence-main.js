@@ -1,19 +1,26 @@
 const ROT_FREQ = 10
-const ROT_VEL = 0.2
 
-
-
+var el;
 
 window.onload = async function () {
 
-	var websocket_address  = await $.get('/websocket_address').promise();
-	var move_base_instance = await $.get('/move_base_instance').promise();
-	var cmd_vel_topic      = await $.get('/cmd_vel_topic').promise();
-	var stream_url         = await $.get('/stream_url').promise();
+	el      = await document.getElementById('screen');
+
+
+	var data  = await $.get('/get_data').promise();
+	data = data.split('#');
+	var websocket_address  = data[0];
+	var move_base_instance = data[1];
+	var cmd_vel_topic      = data[2];
+	var stream_url         = data[3];
+	var ROT_VEL            = parseFloat(data[4]);
+
+
+	if (!el) {throw "Could not get canvas element"};
+	el.setAttribute("src", stream_url);
+
 
 	ros = new ROSLIB.Ros({
-		// TODO
-		// url: "ws://localhost:9090"
 		url: websocket_address
 	});
 
@@ -50,7 +57,7 @@ window.onload = async function () {
 	var pubCancelGoal = new ROSLIB.Topic({
 		ros: ros,
 		name: '/'+move_base_instance+'/cancel',
-		messageType: 'actionlib_msgs/GoalID' // TODO
+		messageType: 'actionlib_msgs/GoalID'
 	});
 	var cancelMessage = new ROSLIB.Message({});
 
@@ -114,12 +121,6 @@ window.onload = async function () {
 		btn_cancel.style.background = btn_color_canc;
 	}
 
-
-
-	el = document.getElementById("screen");
-	if (!el) {throw "Could not get canvas element"};
-	// el.setAttribute("src", stream_url);
-	// TODO
 
 
 	el.onclick = function(event) {

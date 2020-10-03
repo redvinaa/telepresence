@@ -17,8 +17,8 @@ assert __name__ == '__main__'
 
 
 cvBridge   = CvBridge()
-fisheye    = rospy.get_param('fisheye', True)
-use_undistort = rospy.get_param('undistort', False)
+fisheye    = rospy.get_param('~fisheye', True)
+use_undistort = rospy.get_param('~undistort', False)
 
 def callback(image, camera_info):
 	global cvBridge, fisheye, out_width, out_height

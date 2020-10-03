@@ -2,9 +2,9 @@ extends layout.pug
 
 block scripts
 	script(src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js")
-	script(src="http://static.robotwebtools.org/roslibjs/current/roslib.min.js")
+	script(src="http://static.robotwebtools.org/roslibjs/current/roslib.min.js" onerror="javascript: alert('RESOURCE NOT LOADED')")
 
-	script(src="/telepresence-main.js")
+	script(src="/telepresence-main.js" onerror="javascript: alert('RESOURCE NOT LOADED')")
 
 	style.
 		img { 
@@ -22,11 +22,10 @@ block content
 	div.text-center
 		div.jumbotron.jumbotron-fluid
 			h1 Telepresence control
+		// img#screen.img-fluid(src="http://localhost:8080/stream?topic=/telepresence/image")
 		div.container
-			// TODO
-			img#screen.img-fluid(src="http://localhost:8080/stream?topic=/telepresence/image")
-		div.container
-			div.btn-group.btn-group-lg.d-flex
+			img#screen.img-fluid(width="70%")
+			div#buttons.btn-group.btn-group-lg.d-flex
 				button.btn.btn-flex.btn-primary#left Left
 				button.btn.btn-flex.btn-danger#cancel Cancel goal
 				button.btn.btn-flex.btn-primary#right Right

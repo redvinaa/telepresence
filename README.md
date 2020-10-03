@@ -39,6 +39,8 @@ The below picture contains additional information about the communication of the
 > There is also a browser interface implemented, that can be toggled in the launch file.
 > It streams the image from the telepresence node that can be clicked to send a goal to a robot.
 > 
+> **Important: internet connection os needed to load the rosjs libraries**
+> 
 > It can send rotation commands on the `cmd_vel` topic.
 > 
 > It can also cancel the current move_base goal.

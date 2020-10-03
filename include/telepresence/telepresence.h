@@ -62,12 +62,12 @@ namespace telepresence
 		ros::Subscriber cloudSub;
 		ros::Subscriber gridSub;
 		ros::Subscriber arrivedSub;
+		ros::Subscriber move_baseSub;
 		ros::Publisher move_basePub;
 		ros::Publisher goalPub;
 		ros::Publisher rvizPub;
 		visualization_msgs::Marker marker;
 		ros::ServiceServer clickSrv;
-		// std::unique_ptr<actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction>> moveBaseAction;
 
 		// big memory-stored objects
 		cv_bridge::CvImagePtr inputBridge;
@@ -101,6 +101,7 @@ namespace telepresence
 
 		/* The cloudCb function simply receives and stores the pointcloud from rtabmap. */
 		void cloudCb(const sensor_msgs::PointCloud2 &msg);
+		void move_baseCb(const actionlib_msgs::GoalStatusArray& msg);
 
 		/* The gridCb function simply receives and stores the occupancy_grid */
 		void gridCb(const nav_msgs::OccupancyGrid &msg);
