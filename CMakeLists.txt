@@ -31,7 +31,6 @@ add_message_files(
 add_service_files(
 	FILES
 	Click.srv
-	Rotate.srv
 	)
 
 generate_messages(
